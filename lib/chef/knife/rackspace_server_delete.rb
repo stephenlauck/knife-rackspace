@@ -17,6 +17,7 @@
 #
 
 require 'chef/knife/rackspace_base'
+require 'chef/api_client'
 
 class Chef
   class Knife
@@ -25,6 +26,11 @@ class Chef
       include Knife::RackspaceBase
 
       banner "knife rackspace server delete SERVER_ID [SERVER_ID] (options)"
+      
+      option :complete,
+        :long => "--complete",
+        :boolean => true,
+        :description => "Delete server, node and client"
 
       def run
         @name_args.each do |instance_id|
@@ -40,11 +46,25 @@ class Chef
           msg("Private IP Address", server.addresses["private"][0])
 
           puts "\n"
-          confirm("Do you really want to delete this server")
+          confirm("Do you really want to delete this server") unless config[:complete]
 
           server.destroy
 
           ui.warn("Deleted server #{server.id} named #{server.name}")
+          
+          puts "\n"
+          confirm("Delete client and node for #{server.name}?") unless config[:complete]
+         
+          node = Chef::Node.load(server.name)
+          puts "deleting node #{node.name}"
+          node.destroy
+          ui.warn("Deleted node named #{node.name}")
+
+          client = Chef::ApiClient.load(server.name)
+          puts "deleting client #{client.name}"
+          client.destroy
+          ui.warn("Deleted client named #{client.name}")
+          
         end
       end
 
